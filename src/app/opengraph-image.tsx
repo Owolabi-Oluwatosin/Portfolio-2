@@ -23,29 +23,47 @@ export default async function Image() {
       >
         <div
           style={{
-            width: 64,
-            height: 6,
-            borderRadius: 4,
-            background: "#5b8cff",
-            marginBottom: 32,
+            display: "flex",
+            fontSize: 24,
+            color: "#38e0b0",
+            fontFamily: "monospace",
           }}
-        />
-        <div style={{ display: "flex", fontSize: 64, fontWeight: 700, lineHeight: 1.1 }}>
-          {profile.name}
-        </div>
-        <div style={{ display: "flex", fontSize: 32, color: "#8b93a7", marginTop: 20 }}>
-          {profile.role}
+        >
+          {"// available for select work"}
         </div>
         <div
           style={{
             display: "flex",
-            fontSize: 24,
-            color: "#38e0b0",
-            marginTop: 40,
-            fontFamily: "monospace",
+            fontSize: 68,
+            fontWeight: 700,
+            lineHeight: 1.1,
+            marginTop: 20,
           }}
         >
-          {profile.subtitle}
+          {profile.name}
+        </div>
+        <div style={{ display: "flex", fontSize: 32, marginTop: 20, gap: 12 }}>
+          <span style={{ display: "flex", color: "#e8eaf0" }}>{profile.role}</span>
+          <span style={{ display: "flex", color: "#8b93a7" }}>{`— ${profile.subtitle}`}</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", marginTop: 36, gap: 14 }}>
+          {profile.highlights.map((h) => (
+            <div
+              key={h}
+              style={{ display: "flex", alignItems: "center", fontSize: 22, color: "#8b93a7" }}
+            >
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  background: "#38e0b0",
+                  marginRight: 16,
+                }}
+              />
+              {h}
+            </div>
+          ))}
         </div>
       </div>
     ),
