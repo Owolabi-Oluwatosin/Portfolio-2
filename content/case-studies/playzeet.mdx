@@ -1,0 +1,45 @@
+---
+title: "PlayZeet: building a peer-to-peer sports-betting platform end to end"
+date: "2026-02-01"
+client: "PlayZeet"
+summary: "Founding engineer on a live, real-money betting platform — bet-matching engine, pari-mutuel payouts, scheduled settlement, and payments reconciliation across crypto and card rails."
+tags: ["NestJS", "PostgreSQL", "Prisma", "BullMQ", "Redis", "Socket.IO", "React"]
+---
+
+{/* TODO: replace this placeholder narrative with your own detailed write-up — real metrics, screenshots, and decisions specific to PlayZeet. */}
+
+## The problem
+
+PlayZeet needed a peer-to-peer, group, and novelty sports-betting product that
+could safely handle real money from day one — no staging period, no synthetic
+liquidity. That meant the bet-matching logic, payout math, and settlement
+pipeline all had to be correct under real financial risk, not just functionally
+complete.
+
+## What I built
+
+As founding engineer I owned the platform end to end:
+
+- A bet-matching engine handling lay bets, brave-take applicability, and
+  currency-equivalence logic between counterparties.
+- A pari-mutuel payout formula for group bets, plus a scheduled settlement job
+  that closes out markets on a timer.
+- JWT session management with multi-layer expiry detection to keep long-lived
+  sessions safe without forcing re-logins mid-bet.
+- A Puppeteer-based SSR/SEO layer in front of the React SPA so betting markets
+  are indexable and shareable.
+- Crypto (NOWPayments) and card (Flutterwave) deposit integrations, reconciled
+  through BullMQ background jobs against provider webhooks.
+
+## Stack decisions
+
+NestJS + Prisma + PostgreSQL for the core API, Redis and BullMQ for queues and
+settlement scheduling, Socket.IO for live odds and market updates on the
+client.
+
+## Outcome
+
+{/* TODO: add real numbers — uptime, transaction volume, time-to-settlement, etc. */}
+
+The platform is live in production at [playzeet.com](https://playzeet.com),
+processing real-money bets across crypto and card deposit rails.

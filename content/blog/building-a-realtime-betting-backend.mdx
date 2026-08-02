@@ -1,0 +1,20 @@
+---
+title: "What a real-time betting backend actually needs"
+date: "2025-12-08"
+category: "architecture"
+excerpt: "Sockets are the easy part. The hard part is settlement that stays correct, queues that don't double-pay, and a matching engine that agrees with itself under load."
+---
+
+Peer-to-peer betting looks like a socket problem from the outside. From the
+inside it's a correctness problem wearing a socket costume.
+
+## Three systems doing the real work
+
+- **A matching engine** that decides which lay bet applies to which back bet,
+  handling currency equivalence and brave-take rules without ever double-matching.
+- **A settlement job** that runs on a schedule, computes each winner's
+  *proportional* share of the net pool, and is idempotent so a retry never pays twice.
+- **A queue layer** (BullMQ + Redis) that reconciles deposits and payouts, so a
+  webhook arriving twice doesn't credit an account twice.
+
+Get those three right and the sockets are almost incidental.
