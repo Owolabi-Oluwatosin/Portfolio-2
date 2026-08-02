@@ -1,6 +1,6 @@
 import { profile } from "./content";
 
-const rawUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://REPLACE-ME.com";
+const rawUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.danielood.com";
 
 export const SITE = {
   url: rawUrl.replace(/\/$/, ""),

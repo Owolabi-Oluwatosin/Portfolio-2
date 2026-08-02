@@ -7,9 +7,9 @@ without touching components.
 ## Run
 
 ```bash
-npm install
-npm run dev        # http://localhost:3000
-npm run build && npm start   # production
+yarn install
+yarn dev        # http://localhost:3000
+yarn build && yarn start   # production
 ```
 
 ## Where the content lives
