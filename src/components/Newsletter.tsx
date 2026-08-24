@@ -5,11 +5,33 @@ import { useState } from "react";
 export default function Newsletter() {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  function submit() {
-    if (!email.includes("@")) return;
-    // TODO: wire to your provider (Buttondown, ConvertKit, Resend, etc.)
-    setDone(true);
+  async function submit() {
+    if (!email.includes("@") || loading) return;
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to subscribe. Please try again.");
+        return;
+      }
+
+      setDone(true);
+    } catch {
+      setError("An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -28,15 +50,18 @@ export default function Newsletter() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@email.com"
-              className="flex-1 rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:border-accent"
+              disabled={done}
+              className="flex-1 rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:border-accent disabled:opacity-60"
             />
             <button
               onClick={submit}
-              className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-bg transition-all hover:brightness-110 active:scale-95"
+              disabled={loading || done}
+              className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-bg transition-all hover:brightness-110 active:scale-95 disabled:opacity-60 disabled:active:scale-100"
             >
-              {done ? "Subscribed ✓" : "Subscribe"}
+              {done ? "Subscribed ✓" : loading ? "Subscribing…" : "Subscribe"}
             </button>
           </div>
+          {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
         </div>
       </div>
     </section>
