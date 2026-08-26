@@ -1,8 +1,14 @@
 ---
-title: "Prisma Decimal is not a number: the NaN bug that reached production"
-date: "2026-01-20"
-category: "backend"
-excerpt: "A settlement job started writing amount: NaN in production. The cause wasn't the maths — it was assuming Prisma hands back plain JS numbers. Here's the trap and the fix."
+title: 'Prisma Decimal is not a number: the NaN bug that reached production'
+date: '2026-01-20'
+category: backend
+excerpt: >-
+  A settlement job started writing amount: NaN in production. The cause wasn't
+  the maths — it was assuming Prisma hands back plain JS numbers. Here's the
+  trap and the fix.
+cover: >-
+  /images/blog/prisma-decimal-pitfalls/1787769622935-prisma-decimal-nan-blog-hero.png
+draft: false
 ---
 
 Money code has no tolerance for surprises, so when PlayZeet's bet-settlement job
