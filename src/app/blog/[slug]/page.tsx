@@ -11,6 +11,10 @@ export function generateStaticParams() {
   return getAllPosts().map((p) => ({ slug: p.slug }));
 }
 
+// Drafts are excluded from getAllPosts(); block on-demand rendering of any
+// slug outside that set so an unpublished draft can never be reached by URL.
+export const dynamicParams = false;
+
 export function generateMetadata({
   params,
 }: {
@@ -70,7 +74,7 @@ export default function PostPage({ params }: { params: { slug: string } }) {
         ← All posts
       </Link>
       <div className="mt-6 font-mono text-xs text-muted">
-        {formatDate(post.date)} · {post.category}
+        {formatDate(post.date)} · {post.category} · {post.readingMinutes} min read
       </div>
       <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
         {post.title}

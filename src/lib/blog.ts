@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
+import { readingTime } from "./readingTime";
 
 const BLOG_DIR = path.join(process.cwd(), "content", "blog");
 
@@ -11,6 +12,8 @@ export type PostMeta = {
   category: string;
   excerpt: string;
   cover?: string;
+  draft?: boolean;
+  readingMinutes: number;
 };
 
 export type Post = PostMeta & { content: string };
@@ -23,7 +26,7 @@ export function getAllPosts(): PostMeta[] {
     .map((file) => {
       const slug = file.replace(/\.mdx?$/, "");
       const raw = fs.readFileSync(path.join(BLOG_DIR, file), "utf8");
-      const { data } = matter(raw);
+      const { data, content } = matter(raw);
       return {
         slug,
         title: data.title ?? slug,
@@ -31,8 +34,11 @@ export function getAllPosts(): PostMeta[] {
         category: data.category ?? "general",
         excerpt: data.excerpt ?? "",
         cover: data.cover ?? undefined,
+        draft: data.draft === true,
+        readingMinutes: readingTime(content),
       };
     })
+    .filter((post) => !post.draft)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
@@ -50,19 +56,10 @@ export function getPost(slug: string): Post | null {
     category: data.category ?? "general",
     excerpt: data.excerpt ?? "",
     cover: data.cover ?? undefined,
+    draft: data.draft === true,
+    readingMinutes: readingTime(content),
     content,
   };
 }
 
-export function formatDate(date: string): string {
-  if (!date) return "";
-  try {
-    return new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch {
-    return date;
-  }
-}
+export { formatDate } from "./date";

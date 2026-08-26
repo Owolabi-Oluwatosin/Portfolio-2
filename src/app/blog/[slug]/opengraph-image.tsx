@@ -10,6 +10,8 @@ export function generateStaticParams() {
   return getAllPosts().map((p) => ({ slug: p.slug }));
 }
 
+export const dynamicParams = false;
+
 export default async function Image({ params }: { params: { slug: string } }) {
   const post = getPost(params.slug);
   const title = post?.title ?? "Blog";

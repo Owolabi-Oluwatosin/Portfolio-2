@@ -31,7 +31,9 @@ export default function BlogPostCard({ post }: { post: PostMeta }) {
           <span className="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-wide text-accent">
             {post.category}
           </span>
-          <span className="font-mono text-xs text-muted">{formatDate(post.date)}</span>
+          <span className="font-mono text-xs text-muted">
+            {formatDate(post.date)} · {post.readingMinutes} min read
+          </span>
         </div>
         <h3 className="mt-3 text-lg font-semibold leading-snug transition-colors group-hover:text-accent">
           {post.title}

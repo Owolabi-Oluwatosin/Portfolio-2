@@ -37,7 +37,7 @@ export default function CaseStudyListPage() {
             >
               <CaseStudyCover cover={s.cover} title={s.title} />
               <div className="font-mono text-xs text-muted">
-                {formatDate(s.date)} · {s.client}
+                {formatDate(s.date)} · {s.client} · {s.readingMinutes} min read
               </div>
               <h3 className="mt-2 text-lg font-semibold group-hover:text-accent">
                 {s.title}

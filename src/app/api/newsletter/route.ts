@@ -1,14 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const apiKey = process.env.RESEND_API_KEY
-const resend = new Resend(apiKey);
-
 export async function POST(req: Request) {
-
-
-
-
   try {
     const { email } = await req.json()
 
@@ -17,9 +10,13 @@ export async function POST(req: Request) {
     }
     // const audienceId = process.env.RESEND_AUDIENCE_ID
 
+    const apiKey = process.env.RESEND_API_KEY
+
     if (!apiKey) {
       return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 })
     }
+
+    const resend = new Resend(apiKey)
     // const res = await fetch(`https://api.resend.com/audiences/${audienceId}/contacts`, {
     //   method: 'POST',
     //   headers: {

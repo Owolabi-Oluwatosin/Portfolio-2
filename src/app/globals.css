@@ -84,3 +84,13 @@ button:focus-visible,
   border: 0;
   padding: 0;
 }
+
+/* Tiptap's placeholder extension marks the empty-editor paragraph with these
+   classes/attribute; style is opt-in, hence not in the extension itself. */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: #8b93a7;
+  pointer-events: none;
+}

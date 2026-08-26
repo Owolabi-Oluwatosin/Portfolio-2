@@ -268,18 +268,18 @@ export const techCategories: TechCategory[] = [
 export const services = [
   {
     title: "Full-stack product build",
-    body: "Design, build, and ship a production app end to end — schema, API, real-time layer, and the client. The way PlayZeet got built.",
+    body: "Design, build, and ship a production app end to end — schema, API, real-time layer, and the client. Available as a full-stack product developer or founding engineer for hire when you need one person to own a 0-to-1 build, the way PlayZeet got built.",
   },
   {
     title: "Real-time & background systems",
-    body: "Socket.IO, BullMQ/Redis queues, scheduled jobs, reconciliation pipelines. Systems that stay correct under load and money.",
+    body: "Socket.IO, BullMQ/Redis queues, scheduled jobs, reconciliation pipelines — systems that stay correct under load and money. Work with a real-time systems developer who's shipped Socket.IO and BullMQ/Redis in production, not just in a tutorial.",
   },
   {
     title: "Fintech & payments integration",
-    body: "Card and crypto deposits, settlement engines, ledgers, and withdrawal workflows with the audit trail fintech needs.",
+    body: "Card and crypto deposits, settlement engines, ledgers, and withdrawal workflows with the audit trail fintech needs. As a fintech payments developer, I've built payment integration and crypto/card deposit systems handling real money at scale.",
   },
   {
     title: "Rescue & scale existing codebases",
-    body: "Diagnose the production bug, fix the deployment, add the tests, and leave the codebase in better shape than I found it.",
+    body: "Diagnose the production bug, fix the deployment, add the tests, and leave the codebase in better shape than I found it. A codebase rescue developer for legacy code migrations and production bug fixes when things are on fire.",
   },
 ];

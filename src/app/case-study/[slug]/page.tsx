@@ -77,7 +77,7 @@ export default function CaseStudyPage({ params }: { params: { slug: string } }) 
         ← All case studies
       </Link>
       <div className="mt-6 font-mono text-xs text-muted">
-        {formatDate(study.date)} · {study.client}
+        {formatDate(study.date)} · {study.client} · {study.readingMinutes} min read
       </div>
       <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
         {study.title}

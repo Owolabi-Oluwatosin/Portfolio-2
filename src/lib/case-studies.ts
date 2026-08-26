@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
+import { readingTime } from "./readingTime";
 
 const CASE_STUDY_DIR = path.join(process.cwd(), "content", "case-studies");
 
@@ -12,6 +13,7 @@ export type CaseStudyMeta = {
   summary: string;
   tags: string[];
   cover?: string;
+  readingMinutes: number;
 };
 
 export type CaseStudy = CaseStudyMeta & { content: string };
@@ -24,7 +26,7 @@ export function getAllCaseStudies(): CaseStudyMeta[] {
     .map((file) => {
       const slug = file.replace(/\.mdx?$/, "");
       const raw = fs.readFileSync(path.join(CASE_STUDY_DIR, file), "utf8");
-      const { data } = matter(raw);
+      const { data, content } = matter(raw);
       return {
         slug,
         title: data.title ?? slug,
@@ -33,6 +35,7 @@ export function getAllCaseStudies(): CaseStudyMeta[] {
         summary: data.summary ?? "",
         tags: data.tags ?? [],
         cover: data.cover ?? undefined,
+        readingMinutes: readingTime(content),
       };
     })
     .sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -53,6 +56,7 @@ export function getCaseStudy(slug: string): CaseStudy | null {
     summary: data.summary ?? "",
     tags: data.tags ?? [],
     cover: data.cover ?? undefined,
+    readingMinutes: readingTime(content),
     content,
   };
 }
