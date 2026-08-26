@@ -6,7 +6,7 @@ import { getAllCaseStudies, getCaseStudy } from "@/lib/case-studies";
 import { formatDate } from "@/lib/blog";
 import { profile } from "@/lib/content";
 import { SITE } from "@/lib/seo";
-import { Tag, CaseStudyCover } from "@/components/ui";
+import { Tag, CoverImage } from "@/components/ui";
 import JsonLd from "@/components/JsonLd";
 
 export function generateStaticParams() {
@@ -84,7 +84,7 @@ export default function CaseStudyPage({ params }: { params: { slug: string } }) 
       </h1>
       {study.cover && (
         <div className="mt-6">
-          <CaseStudyCover cover={study.cover} title={study.title} />
+          <CoverImage cover={study.cover} title={study.title} />
         </div>
       )}
       <div className="mt-4 flex flex-wrap gap-2">

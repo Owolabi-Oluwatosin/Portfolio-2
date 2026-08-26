@@ -60,7 +60,7 @@ export function XIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export function CaseStudyCover({
+export function CoverImage({
   cover,
   title,
 }: {

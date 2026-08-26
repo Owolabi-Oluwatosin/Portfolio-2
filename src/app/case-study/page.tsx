@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getAllCaseStudies } from "@/lib/case-studies";
 import { formatDate } from "@/lib/blog";
-import { SectionHeading, Tag, CaseStudyCover } from "@/components/ui";
+import { SectionHeading, Tag, CoverImage } from "@/components/ui";
 import { SITE } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -35,7 +35,7 @@ export default function CaseStudyListPage() {
               href={`/case-study/${s.slug}`}
               className="group flex flex-col rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-accent/50"
             >
-              <CaseStudyCover cover={s.cover} title={s.title} />
+              <CoverImage cover={s.cover} title={s.title} />
               <div className="font-mono text-xs text-muted">
                 {formatDate(s.date)} · {s.client} · {s.readingMinutes} min read
               </div>

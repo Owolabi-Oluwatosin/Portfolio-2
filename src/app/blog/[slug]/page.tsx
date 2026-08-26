@@ -6,6 +6,7 @@ import { getAllPosts, getPost, formatDate } from "@/lib/blog";
 import { profile } from "@/lib/content";
 import { SITE } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
+import { CoverImage } from "@/components/ui";
 
 export function generateStaticParams() {
   return getAllPosts().map((p) => ({ slug: p.slug }));
@@ -79,6 +80,11 @@ export default function PostPage({ params }: { params: { slug: string } }) {
       <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
         {post.title}
       </h1>
+      {post.cover && (
+        <div className="mt-6">
+          <CoverImage cover={post.cover} title={post.title} />
+        </div>
+      )}
       <div className="prose-post mt-8">
         <MDXRemote source={post.content} />
       </div>

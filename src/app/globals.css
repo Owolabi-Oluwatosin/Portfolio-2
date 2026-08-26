@@ -50,6 +50,36 @@ button:focus-visible,
   margin-bottom: 0.75rem;
   color: #e8eaf0;
 }
+.prose-post h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  color: #e8eaf0;
+}
+.prose-post h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #e8eaf0;
+}
+.prose-post h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #e8eaf0;
+}
+.prose-post h6 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #8b93a7;
+}
 .prose-post p {
   margin: 1rem 0;
   color: #c3c9d6;
