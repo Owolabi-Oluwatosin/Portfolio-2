@@ -16,6 +16,7 @@ import {
   GitHubContentError,
 } from "@/lib/githubContent";
 import { getStoredToken } from "@/lib/adminSession";
+import { generateExcerpt } from "@/lib/excerpt";
 
 export default function EditorPage() {
   return (
@@ -125,11 +126,13 @@ function Editor() {
     setError(null);
     setSuccess(null);
     try {
+      const finalExcerpt = excerpt.trim() || generateExcerpt(content);
+      if (finalExcerpt !== excerpt) setExcerpt(finalExcerpt);
       const data = {
         title,
         date,
         category,
-        excerpt,
+        excerpt: finalExcerpt,
         ...(cover ? { cover } : {}),
         draft,
       };
@@ -253,7 +256,17 @@ function Editor() {
           {coverError && <p className="text-xs text-red-400">{coverError}</p>}
         </div>
         <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
-          Excerpt
+          <div className="flex items-center justify-between">
+            <span>Excerpt</span>
+            <button
+              type="button"
+              onClick={() => setExcerpt(generateExcerpt(content))}
+              disabled={!content.trim()}
+              className="text-xs font-medium text-accent hover:brightness-110 disabled:opacity-50"
+            >
+              Generate from content
+            </button>
+          </div>
           <textarea
             value={excerpt}
             onChange={(e) => setExcerpt(e.target.value)}
