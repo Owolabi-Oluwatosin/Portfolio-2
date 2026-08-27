@@ -15,7 +15,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'A valid email address is required.' }, { status: 400 })
     }
     
-
     if (!apiKey) {
       return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 })
     }
@@ -28,7 +27,7 @@ export async function POST(req: Request) {
       email,
       audienceId,
     });
-    console.log("verify if email exist:", data)
+    //console.log("verify if email exist:", data)
     if (data?.email === email) {
       return NextResponse.json(
         { code: 'ALREADY_SUBSCRIBED', message: "You're already subscribed." },
