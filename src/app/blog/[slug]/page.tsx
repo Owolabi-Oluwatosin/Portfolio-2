@@ -89,7 +89,7 @@ export default function PostPage({ params }: { params: { slug: string } }) {
       <div className="prose-post mt-8">
         <MDXRemote
           source={post.content}
-          options={{ mdxOptions: { rehypePlugins: [rehypeHighlight] } }}
+          options={{ mdxOptions: { rehypePlugins: [[rehypeHighlight, { detect: true }]] } }}
         />
       </div>
     </article>
