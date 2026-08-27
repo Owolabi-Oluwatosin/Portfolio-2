@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
+import rehypeHighlight from "rehype-highlight";
 import { getAllPosts, getPost, formatDate } from "@/lib/blog";
 import { profile } from "@/lib/content";
 import { SITE } from "@/lib/seo";
@@ -86,7 +87,10 @@ export default function PostPage({ params }: { params: { slug: string } }) {
         </div>
       )}
       <div className="prose-post mt-8">
-        <MDXRemote source={post.content} />
+        <MDXRemote
+          source={post.content}
+          options={{ mdxOptions: { rehypePlugins: [rehypeHighlight] } }}
+        />
       </div>
     </article>
   );

@@ -124,3 +124,74 @@ button:focus-visible,
   color: #8b93a7;
   pointer-events: none;
 }
+
+.tiptap pre {
+  background: #0d0f14;
+  border: 1px solid #1c1f27;
+  border-radius: 0.6rem;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+.tiptap pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+}
+
+/* Syntax highlighting (highlight.js token classes) shared by the Tiptap
+   editor (lowlight) and published posts (rehype-highlight). */
+.hljs-comment,
+.hljs-quote {
+  color: #6b7280;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-operator,
+.hljs-deletion {
+  color: #ff7b93;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-regexp,
+.hljs-addition,
+.hljs-meta-string {
+  color: #38e0b0;
+}
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet {
+  color: #e9b949;
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-title.class_,
+.hljs-built_in,
+.hljs-type {
+  color: #5b8cff;
+}
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: #7ee787;
+}
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attribute,
+.hljs-property {
+  color: #e8eaf0;
+}
+.hljs-punctuation,
+.hljs-params {
+  color: #c3c9d6;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}

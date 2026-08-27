@@ -5,6 +5,8 @@ import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import TiptapLink from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { createLowlight, common } from "lowlight";
 import { Markdown, type MarkdownStorage } from "tiptap-markdown";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -43,16 +45,18 @@ export default function RichTextEditor({ content, onChange, onUploadImage }: Pro
   // already pushed in so a later async load (fetched from GitHub) can be
   // applied without clobbering the user's own typing on every render.
   const loadedContent = useRef(content);
+  const lowlight = useRef(createLowlight(common)).current;
 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      // Tiptap v3's StarterKit bundles its own Link extension; disable it so
-      // our separately-configured one below doesn't collide with it.
-      StarterKit.configure({ link: false }),
+      // Tiptap v3's StarterKit bundles its own Link and CodeBlock extensions;
+      // disable them so the separately-configured ones below don't collide.
+      StarterKit.configure({ link: false, codeBlock: false }),
       TiptapImage,
       TiptapLink.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder: "Write your post…" }),
+      CodeBlockLowlight.configure({ lowlight }),
       Markdown.configure({ html: false, transformPastedText: true }),
     ],
     content,
