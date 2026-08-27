@@ -1,0 +1,60 @@
+---
+title: 'Money math that lies: the Decimal/NaN class of bugs'
+date: '2026-08-27'
+category: backend
+excerpt: >-
+  Every senior engineer eventually meets a bug that isn't loud. It doesn't
+  throw, doesn't page you, doesn't show up red in the logs. It just quietly
+  writes the…
+cover: >-
+  /images/blog/money-math-that-lies-the-decimal-nan-class-of-bugs/1787796742263-money-decimal-assembly-line.png
+draft: false
+---
+Every senior engineer eventually meets a bug that isn't loud. It doesn't throw, doesn't page you, doesn't show up red in the logs. It just quietly writes the wrong number to a place where numbers matter. On a real-money betting platform, that place is a user's balance, and the wrong number is `NaN`.
+
+## The challenge
+
+ORMs return rich types for a reason. Prisma hands you a `Decimal` object for decimal columns instead of a JavaScript `number`, because `number` is a 64-bit float and floats lose money. The problem is that `Decimal` looks close enough to a number that ordinary code treats it like one - and JavaScript is happy to coerce silently rather than fail honestly.
+
+```
+// A settlement job, mid-refactor
+const total = bet.stake + bet.bonus; // both are Prisma.Decimal
+// total is now "[object Object][object Object]" → NaN downstream
+```
+
+No exception. The `NaN` propagates through payout math, gets written to the ledger, and surfaces days later as an accounting discrepancy someone has to reconcile by hand.
+
+## Normal practice
+
+The normal instinct is to fix the symptom where it hurts. You find the settlement job, wrap the offending line in a guard, maybe sprinkle a `Number(...)` cast, confirm the ledger looks right, and move on. It works - until the next place a `Decimal` meets an arithmetic operator, where the same bug is waiting with a fresh disguise.
+
+Normal practice treats the return type as a formality. It optimizes for making *this* line correct, not for making the *class* of bug impossible.
+
+## Best practice
+
+```
+Treat the ORM's return types as a contract enforced at a boundary. The moment a Decimal leaves the database layer, it gets normalized - deliberately, in one place - and the rest of the codebase never sees a raw Decimal in arithmetic again.
+
+import { Prisma } from "@prisma/client";
+```
+
+```
+const toNum = (d: Prisma.Decimal | number): number =>
+typeof d === "number" ? d : d.toNumber();
+```
+
+```
+// At the edge of the data layer, not scattered through business logic
+const total = toNum(bet.stake) + toNum(bet.bonus);
+```
+
+Two rules make the class of bug disappear:
+
+- Convert explicitly at the boundary. Business logic works with `number` (or stays in `Decimal` end-to-end for precision-critical math) - never a silent mix.
+- Never compare `Decimal` instances with `===`. Two decimals holding the same value are different objects; `===` is a reference check that will lie to you.
+
+The deeper move is to make illegal states unrepresentable. A lint rule that flags arithmetic on `Prisma.Decimal`, or a thin repository layer that only ever returns normalized primitives, converts a recurring incident into a compile-time or review-time impossibility.
+
+## The lesson
+
+The gap between normal and best practice isn't skill - it's altitude. Normal practice fixes the line. Best practice asks what *kind* of thing just went wrong and closes the door on all of it. When real money is on the line, the return type of a function isn't a detail. It's a promise, and promises get enforced at boundaries.
