@@ -4,27 +4,21 @@ date: '2026-01-20'
 category: backend
 excerpt: >-
   A settlement job started writing amount: NaN in production. The cause wasn't
-  the maths — it was assuming Prisma hands back plain JS numbers. Here's the
+  the maths - it was assuming Prisma hands back plain JS numbers. Here's the
   trap and the fix.
 cover: >-
   /images/blog/prisma-decimal-pitfalls/1787769622935-prisma-decimal-nan-blog-hero.png
 draft: false
 ---
-
-Money code has no tolerance for surprises, so when PlayZeet's bet-settlement job
-started writing `amount: NaN`, it went straight to the top of the list.
+Money code has no tolerance for surprises, so when PlayZeet's bet-settlement job started writing `amount: NaN`, it went straight to the top of the list.
 
 ## The trap
 
-Prisma returns `Decimal` objects for decimal columns, not native numbers. The
-moment you do arithmetic like `a + b` on two `Decimal` values — or mix a
-`Decimal` with a `number` — you get results that silently coerce to `NaN`
-instead of the value you expected.
+Prisma returns `Decimal` objects for decimal columns, not native numbers. The moment you do arithmetic like `a + b` on two `Decimal` values - or mix a `Decimal` with a `number` - you get results that silently coerce to `NaN`instead of the value you expected.
 
 ## The fix
 
-Normalise at the boundary. The instant a `Decimal` leaves the database layer,
-convert it explicitly, and never compare `Decimal` instances with `===`.
+Normalise at the boundary. The instant a `Decimal` leaves the database layer, convert it explicitly, and never compare `Decimal` instances with `===`.
 
 ```ts
 import { Prisma } from "@prisma/client";
@@ -35,5 +29,4 @@ const toNum = (d: Prisma.Decimal | number) =>
 const total = toNum(bet.stake) + toNum(bet.bonus);
 ```
 
-The lesson: treat the ORM's return types as a contract, not a formality —
-especially when real money is on the line.
+The lesson: treat the ORM's return types as a contract, not a formality - especially when real money is on the line.
