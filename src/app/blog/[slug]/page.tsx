@@ -6,8 +6,10 @@ import rehypeHighlight from "rehype-highlight";
 import { getAllPosts, getPost, formatDate } from "@/lib/blog";
 import { profile } from "@/lib/content";
 import { SITE } from "@/lib/seo";
+import { stripMarkdown } from "@/lib/excerpt";
 import JsonLd from "@/components/JsonLd";
 import { CoverImage } from "@/components/ui";
+import PostAudioPlayer from "@/components/PostAudioPlayer";
 
 export function generateStaticParams() {
   return getAllPosts().map((p) => ({ slug: p.slug }));
@@ -46,6 +48,7 @@ export default function PostPage({ params }: { params: { slug: string } }) {
   if (!post) notFound();
 
   const url = `${SITE.url}/blog/${post.slug}`;
+  const spokenText = `${post.title}. ${stripMarkdown(post.content)}`;
 
   const blogPostingJsonLd = {
     "@context": "https://schema.org",
@@ -81,6 +84,7 @@ export default function PostPage({ params }: { params: { slug: string } }) {
       <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
         {post.title}
       </h1>
+      <PostAudioPlayer text={spokenText} />
       {post.cover && (
         <div className="mt-6">
           <CoverImage cover={post.cover} title={post.title} />
