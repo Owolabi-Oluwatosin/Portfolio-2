@@ -1,15 +1,46 @@
 "use client";
 
 import { useState } from "react";
+import { useNotification } from "./NotificationProvider";
 
 export default function FooterNewsletter() {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { showNotification } = useNotification();
 
-  function submit() {
-    if (!email.includes("@")) return;
-    // TODO: wire to your provider (Buttondown, ConvertKit, Resend, etc.)
-    setDone(true);
+  async function submit() {
+    if (!email.includes("@") || loading) return;
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showNotification({ variant: "danger", message: data.error || "Failed to subscribe. Please try again." });
+        return;
+      }
+
+      if (data.code === "ALREADY_SUBSCRIBED") {
+        showNotification({ variant: "warning", message: data.message || "You're already subscribed." });
+        return;
+      }
+
+      setDone(true);
+      setTimeout(() => {
+        setDone(false)
+        setEmail("")
+      ,6000});
+    } catch {
+      showNotification({ variant: "danger", message: "An unexpected error occurred." });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -31,9 +62,10 @@ export default function FooterNewsletter() {
         />
         <button
           onClick={submit}
+          disabled={loading || done}
           className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-bg transition-all hover:brightness-110 active:scale-95"
         >
-          {done ? "Subscribed ✓" : "Subscribe"}
+          {done ? "Subscribed ✓" : loading ? "Subscribing…" : "Subscribe"}
         </button>
       </div>
     </div>

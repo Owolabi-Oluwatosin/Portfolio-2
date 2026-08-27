@@ -4,6 +4,7 @@ import "./globals.css";
 import { SITE } from "@/lib/seo";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import NotificationProvider from "@/components/NotificationProvider";
 
 const sans = Inter({
   subsets: ["latin"],
@@ -47,9 +48,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body className="min-h-screen backdrop-grid">
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
+        <NotificationProvider>
+          <Navbar />
+          <main>{children}</main>
+          <Footer />
+        </NotificationProvider>
       </body>
     </html>
   );

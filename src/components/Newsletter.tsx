@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useNotification } from "./NotificationProvider";
 
 export default function Newsletter() {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const { showNotification } = useNotification();
 
   async function submit() {
     if (!email.includes("@") || loading) return;
     setLoading(true);
-    setError("");
 
     try {
       const res = await fetch("/api/newsletter", {
@@ -19,16 +19,27 @@ export default function Newsletter() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
+
+      //console.log("res:", res)
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Failed to subscribe. Please try again.");
+        showNotification({ variant: "danger", message: data.error || "Failed to subscribe. Please try again." });
+        return;
+      }
+
+      if (data.code === "ALREADY_SUBSCRIBED") {
+        showNotification({ variant: "warning", message: data.message || "You're already subscribed." });
         return;
       }
 
       setDone(true);
+      setTimeout(() => {
+        setDone(false)
+        setEmail("")
+      ,6000});
     } catch {
-      setError("An unexpected error occurred.");
+      showNotification({ variant: "danger", message: "An unexpected error occurred." });
     } finally {
       setLoading(false);
     }
@@ -61,7 +72,6 @@ export default function Newsletter() {
               {done ? "Subscribed ✓" : loading ? "Subscribing…" : "Subscribe"}
             </button>
           </div>
-          {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
         </div>
       </div>
     </section>

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { profile } from "@/lib/content";
+import { UpworkIcon } from "@/components/ui";
 
 const links = [
   { href: "/services", label: "Services" },
@@ -45,39 +46,51 @@ export default function Navbar() {
           </span>
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
-          {links.map((l) => {
-            const active = isActive(pathname, l.href);
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`relative text-sm transition-colors ${
-                  active ? "text-accent" : "text-muted hover:text-fg"
-                }`}
-              >
-                {l.label}
-                {active && (
-                  <span className="absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-accent" />
-                )}
-              </Link>
-            );
-          })}
-          <Link
-            href="/#contact"
-            className="rounded-full border border-border bg-surface px-4 py-1.5 text-sm font-medium text-fg transition-all hover:border-accent hover:text-accent active:scale-95"
-          >
-            Get in touch
-          </Link>
-        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-8 md:flex">
+            {links.map((l) => {
+              const active = isActive(pathname, l.href);
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className={`relative text-sm transition-colors ${
+                    active ? "text-accent" : "text-muted hover:text-fg"
+                  }`}
+                >
+                  {l.label}
+                  {active && (
+                    <span className="absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-accent" />
+                  )}
+                </Link>
+              );
+            })}
+            <Link
+              href="/#contact"
+              className="rounded-full border border-border bg-surface px-4 py-1.5 text-sm font-medium text-fg transition-all hover:border-accent hover:text-accent active:scale-95"
+            >
+              Get in touch
+            </Link>
+          </div>
 
-        <button
-          className="md:hidden"
-          aria-label="Toggle menu"
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? <X size={22} /> : <Menu size={22} />}
-        </button>
+          <a
+            href={profile.upwork}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-bg transition-all hover:brightness-110 active:scale-95 sm:px-4 sm:text-sm"
+          >
+            <UpworkIcon size={13} />
+            Hire on Upwork
+          </a>
+
+          <button
+            className="md:hidden"
+            aria-label="Toggle menu"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </nav>
 
       {open && (
