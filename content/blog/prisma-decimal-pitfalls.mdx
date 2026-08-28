@@ -1,32 +1,107 @@
 ---
-title: 'Prisma Decimal is not a number: the NaN bug that reached production'
-date: '2026-01-20'
+title: 'The settlement job that quietly wrote NaN: a Prisma Decimal post-mortem'
+date: '2026-08-28'
 category: backend
 excerpt: >-
-  A settlement job started writing amount: NaN in production. The cause wasn't
-  the maths - it was assuming Prisma hands back plain JS numbers. Here's the
-  trap and the fix.
+  How PlayZeet's bet-settlement job started writing amount: NaN with no error,
+  why Prisma.Decimal arithmetic silently coerces, and the boundary fix that
+  closed the whole class of bug.
 cover: >-
-  /images/blog/prisma-decimal-pitfalls/1787769622935-prisma-decimal-nan-blog-hero.png
+  /images/blog/prisma-decimal-pitfalls/1787940962320-settlement-nan-blast-radius.svg
 draft: false
+tags:
+  - Prisma
+  - TypeScript
+  - post-mortem
+  - money
+  - NestJS
+  - correctness
 ---
-Money code has no tolerance for surprises, so when PlayZeet's bet-settlement job started writing `amount: NaN`, it went straight to the top of the list.
+**PlayZeet's bet-settlement job started writing** `amount: NaN` **to the ledger. The cause: Prisma returns** `Decimal` **objects — not native numbers — for decimal columns, and** `decimalA + decimalB` **(or a** `Decimal` **mixed with a** `number`**) coerces to** `NaN` **instead of throwing. The fix was to normalize at the boundary — convert every** `Decimal` **to a** `number` **with** `.toNumber()` **the moment it leaves the data layer, and never compare** `Decimal` **instances with** `===`**. Here's how we found it and how we made it impossible to reintroduce.**
 
-## The trap
+Money code has no tolerance for surprises. So when the settlement job started stamping `amount: NaN` onto ledger rows, it went straight to the top of the list — ahead of every feature, ahead of everything. This is the write-up.
 
-Prisma returns `Decimal` objects for decimal columns, not native numbers. The moment you do arithmetic like `a + b` on two `Decimal` values - or mix a `Decimal` with a `number` - you get results that silently coerce to `NaN`instead of the value you expected.
+## The symptom
 
-## The fix
+The alert wasn't an exception. That's the first thing worth saying, because it's what made this dangerous. Nothing threw. Nothing paged. The job ran to completion, reported success, and moved on — it just happened to write `NaN` where a settled payout amount should be. We only caught it because a downstream balance check flagged that a handful of ledger entries had a non-numeric `amount`, and by then the job had run several times.
 
-Normalise at the boundary. The instant a `Decimal` leaves the database layer, convert it explicitly, and never compare `Decimal` instances with `===`.
+A bug that throws is a bug that stops. This one kept going, wearing the costume of a valid computation, right up until the numbers didn't add up.
+
+## Reproducing it
+
+The settlement job's job is simple: take a bet, add up the parts, write the payout. Reduced to its essence, the line that broke looked like this:
+
+ts
+
+```ts
+// bet.stake and bet.bonus are both Prisma.Decimal
+const total = bet.stake + bet.bonus;
+// total is now NaN — with no error at all
+```
+
+Locally it reproduced instantly. Log `total` and you don't see `55`; you see `NaN`. Log the intermediate step and the reason jumps out:
+
+ts
+
+```ts
+String(bet.stake) + String(bet.bonus);
+// "[object Object][object Object]"
+```
+
+There it is. Prisma returns `Decimal` **objects** for decimal columns, on purpose — a JavaScript `number` is a 64-bit float, and floats lose money (`0.1 + 0.2` is famously not `0.3`). Keeping decimals as exact objects is Prisma protecting you. But the `+` operator can't add two objects, so JavaScript falls back to calling `toString()` on each, concatenates the results into `"[object Object][object Object]"`, and that string turns to `NaN` the first time real arithmetic touches it. No coercion error, no type error — JavaScript would rather guess than fail.
+
+The `Decimal` looked close enough to a number that the settlement code treated it like one, and the language obliged silently. That's the whole trap.
+
+## The one-line fix — and why it wasn't the fix
+
+The tempting response is to patch the line that hurt:
+
+ts
+
+```ts
+const total = Number(bet.stake) + Number(bet.bonus); // "done"
+```
+
+That makes *this* line correct. It does not make the *bug* go away, because the bug was never a property of this line — it was a property of every place in the codebase where a `Decimal` meets an arithmetic operator. The payout calculator, the commission engine, a report query: each one is the same defect wearing a different disguise, and casting this single call site does nothing for the others. Worse, scattering `Number()` casts trains everyone to keep scattering them, which buries the real problem — that raw `Decimal` values are allowed to roam into business logic at all.
+
+So we fixed the class, not the line.
+
+## The actual fix: normalize at the boundary
+
+Treat the ORM's return types as a contract enforced at one boundary. The instant a `Decimal` leaves the data layer, convert it — deliberately, in a single place — so the rest of the codebase never sees a raw `Decimal` in arithmetic again.
+
+ts
 
 ```ts
 import { Prisma } from "@prisma/client";
 
-const toNum = (d: Prisma.Decimal | number) =>
+const toNum = (d: Prisma.Decimal | number): number =>
   typeof d === "number" ? d : d.toNumber();
 
+// at the edge of the data layer, not sprinkled through business logic
 const total = toNum(bet.stake) + toNum(bet.bonus);
 ```
 
-The lesson: treat the ORM's return types as a contract, not a formality - especially when real money is on the line.
+Two rules make the category disappear. **Convert explicitly at the boundary:** business logic works in `number`, or — for precision-critical paths like payout math — stays in `Decimal` end-to-end using `Decimal` methods (`.plus()`, `.times()`). What you never allow is the silent mix. And **never compare** `Decimal` **instances with** `===`, because that's the same trap from a different angle:
+
+ts
+
+```ts
+new Prisma.Decimal("10.00") === new Prisma.Decimal("10.00"); // false
+```
+
+Two `Decimal` objects holding the same value are different objects in memory, and `===` is a reference check — it answers "same object?", not "same value?". It will cheerfully tell you `10.00 !== 10.00` and route a settled bet down the wrong branch. Use `a.equals(b)` for equality and `a.greaterThan(b)` / `a.lessThan(b)` for ordering. (A cousin of this bit us elsewhere: comparing *stringified* decimals with `<` is lexicographic, so `"9.90" < "10.00"` is `false` — string comparison walks character by character, and `"9"` sorts after `"1"`.)
+
+## Making it impossible to reintroduce
+
+Rules that live only in your head get broken by the next tired engineer at 2am. So the last step was to make the mistake structurally impossible rather than merely discouraged. Two levers, either of which closes the door:
+
+A **repository layer that only returns normalized primitives** — business code can't get a raw `Decimal` because the data layer converts before handing anything back, so the shape that causes the bug never crosses the seam. Or a **lint rule that flags arithmetic on** `Prisma.Decimal`, which fails the pull request in CI, turning a production incident into a review-time impossibility. We reached for both over time; even one would have prevented the original write.
+
+## The lesson
+
+The gap here wasn't skill — it was altitude. The quick fix asks "how do I make this line correct?" The durable fix asks "what kind of thing just went wrong, and how do I delete the whole category?" One patches an incident; the other prevents the next twelve.
+
+When real money is on the line, a function's return type isn't a formality. It's a promise — and promises get enforced at boundaries, not remembered one call site at a time. The `NaN` was never really about arithmetic. It was about letting a rich type leak past the layer that was supposed to normalize it.
+
+*I build and debug correctness-critical settlement and payment systems in NestJS and TypeScript — the kind where a silent* `NaN` *is an incident, not a warning. If that's your world, [let's talk](https://www.danielood.com/#contact).*
