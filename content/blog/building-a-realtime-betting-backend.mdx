@@ -1,22 +1,84 @@
 ---
-title: What a real-time betting backend actually needs
-date: '2025-12-08'
+title: Peer-to-peer betting is a correctness problem wearing a socket costume
+date: '2026-08-28'
 category: architecture
 excerpt: >-
-  Sockets are the easy part. The hard part is settlement that stays correct,
-  queues that don't double-pay, and a matching engine that agrees with itself
-  under load.
+  The real architecture behind a P2P betting backend: a matching engine that
+  never double-matches, an idempotent pari-mutuel settlement job, and a BullMQ +
+  Redis queue layer that makes webhooks safe to replay.
 cover: >-
-  /images/blog/building-a-realtime-betting-backend/1787773905813-realtime-betting-backend-hero.png
+  /images/blog/building-a-realtime-betting-backend/1787943201983-p2p-betting-systems.svg
 draft: false
+tags:
+  - architecture
+  - NestJS
+  - BullMQ
+  - Redis
+  - idempotency
+  - betting
+  - correctness
 ---
-Peer-to-peer betting looks like a socket problem from the outside. From the inside it's a correctness problem wearing a socket costume.
+**A peer-to-peer betting backend looks like a real-time sockets problem, but the hard part is correctness under money. Three systems do the real work: a matching engine that pairs lay bets to back bets across currency equivalence without ever double-matching; a scheduled settlement job that computes each winner's proportional share of the net pool and is idempotent so a retry never pays twice; and a BullMQ + Redis queue layer that reconciles deposits and payouts so a webhook arriving twice can't credit an account twice. Get those three invariants right and the sockets are almost incidental.**
 
-## Three systems doing the real work
+Peer-to-peer betting looks like a socket problem from the outside — live odds, live balances, a screen full of things updating in real time. From the inside it's a correctness problem wearing a socket costume. The WebSocket layer is the easy part; plenty of libraries do fan-out well. What's hard is that behind every one of those live updates is real money moving between real users, and money has no tolerance for "eventually, roughly, usually." This is a tour of the three systems that actually carry the weight on PlayZeet, and the invariant each one has to defend.
 
-- **A matching engine** that decides which lay bet applies to which back bet, handling currency equivalence and brave-take rules without ever double-matching.
-- **A settlement job** that runs on a schedule, computes each winner's *proportional* share of the net pool, and is idempotent so a retry never pays twice.
+## System 1: the matching engine
 
-**A queue layer** **(BullMQ + Redis)** that reconciles deposits and payouts, so a webhook arriving twice doesn't credit an account twice.
+In peer-to-peer betting there's no house taking the other side. A user who *backs* an outcome needs another user who *lays* it — bets against it — for the wager to exist at all. The matching engine is the component that decides which lay applies to which back, and it has to do that while respecting three things at once.
 
-Get those three right and the sockets are almost incidental.
+**Currency equivalence.** Users deposit in different currencies (for us, USD and NGN). A back in one currency can be matched by a lay in another, which means matching happens on a normalized value, not on raw amounts — and the conversion has to be locked at match time, not recomputed later when the rate has drifted. If you match on live-converted values and settle on different ones, you've created money out of a rounding difference.
+
+**Brave-take applicability.** There are rules governing when a particular lay is eligible to take a given back — our "brave take" logic. These are business rules, not networking, and they're where subtle bugs hide, because an over-eager rule matches bets that shouldn't be matched and an over-cautious one starves the book.
+
+**No double-matching — ever.** This is the invariant that matters most. A single lay must never be matched against two backs, and a single back must never be satisfied twice. Under concurrency — two requests landing in the same millisecond, both seeing the same unmatched bet as available — the naive "check then update" races itself and double-matches. The fix isn't cleverness, it's making the check and the claim atomic: the bet is claimed inside the same transaction that reads it as available, so a second claimant either sees it already taken or serializes behind the first. The database, not the application, is where "exactly one match" becomes guaranteed rather than hoped-for.
+
+## System 2: the settlement job
+
+When an event resolves, someone has to pay the winners. On a pari-mutuel model, a winner doesn't get fixed odds — they get a **proportional share of the net pool**:
+
+```
+netPool   = totalPool - rake
+yourShare = (yourStake / totalWinningStakes) * netPool
+```
+
+Simple to write, unforgiving to run. Two properties are non-negotiable.
+
+**It has to be exactly right.** This is the arithmetic that made an earlier post-mortem: work in exact decimal types end-to-end (or normalize at a single boundary), never in raw floats, or the proportional split drifts by cents that don't reconcile. A settlement that's off by a penny per winner across thousands of winners is a real hole in a real ledger.
+
+**It has to be idempotent.** The job runs on a schedule, on infrastructure that restarts, redeploys, and retries. It *will* run twice on the same event eventually — that's not an edge case, it's a certainty over a long enough timeline. So paying a winner has to be a claim, not an action: a `settledAt` stamp on the payout, checked and set inside the same transaction that moves the balance.
+
+ts
+
+```ts
+await prisma.$transaction(async (tx) => {
+  const payout = await tx.payout.findUnique({ where: { id } });
+  if (payout.settledAt) return;          // already paid — no-op, no error
+  await tx.wallet.update({ where: { userId: payout.userId },
+                           data: { balance: { increment: payout.amount } } });
+  await tx.payout.update({ where: { id },
+                          data: { settledAt: new Date() } });
+});
+```
+
+Because the read, the credit, and the stamp share one transaction, there's no window where two runs both pass the guard. Idempotency isn't a nice-to-have you bolt on later; it's the property that makes the settlement job *safe to retry*, and anything that runs on a schedule must be safe to retry.
+
+## System 3: the queue layer
+
+Deposits and payouts touch the outside world — payment processors, crypto callbacks, bank webhooks — and the outside world is unreliable by nature. Webhooks arrive twice. They arrive out of order. Sometimes they don't arrive at all. If your account-crediting logic runs synchronously inside the webhook handler, every one of those failure modes becomes a money bug.
+
+So there's a queue layer — BullMQ on Redis — sitting between the noisy outside and the ledger. The webhook handler does almost nothing: verify the signature, enqueue a job, return `200` immediately. The real work happens in a worker, at your pace, with retries and backoff you control. Two layers of protection stack here:
+
+- **Job-level dedup:** the BullMQ `jobId` is keyed on the event's identity, so the same webhook enqueued twice collapses to one job before a worker ever runs.
+- **Ledger-level idempotency:** the worker still credits behind a `creditedAt` guard in a transaction — same pattern as settlement — because job dedup is an optimization, not a guarantee.
+
+On top of that sits **reconciliation**: a scheduled sweep that finds anything still pending and asks the processor for its real status, feeding it back through the same idempotent credit path. Because that path is safe to run repeatedly, reconciliation can only ever *complete* work that was missed — never duplicate work that was done. The webhook makes crediting fast; the reconciliation makes it guaranteed. You need both, and they have to converge on the same answer.
+
+## Why the sockets are almost incidental
+
+Notice what all three systems share: none of them is about real-time delivery. They're about **invariants that must hold under concurrency and retries** — one match per bet, one payout per winner, one credit per deposit. The WebSocket layer broadcasts the *results* of these systems, but it holds none of the truth. You could rip out the sockets and replace them with polling and the platform would be slower, not wrong. Rip out any of these three invariants and it would be fast and broken.
+
+That's the reframe worth internalizing if you're building anything that moves money in real time: the transport is a solved problem, and treating it as the interesting part is how teams ship something that demos beautifully and corrupts a ledger three weeks in. The interesting part is always the same question the settlement job and the matching engine and the queue layer are each answering in their own way — *can this operation run twice, out of order, or concurrently, and still land on exactly the right number?*
+
+Get that right in the three places it matters, and the sockets take care of themselves.
+
+*I design and build correctness-critical real-time backends — matching, settlement, and idempotent payment reconciliation — in NestJS and TypeScript. If you're putting real money through sockets, [let's talk](https://www.danielood.com/#contact).*
