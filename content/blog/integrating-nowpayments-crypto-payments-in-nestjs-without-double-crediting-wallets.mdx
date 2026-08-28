@@ -1,0 +1,278 @@
+---
+title: >-
+  Integrating NOWPayments crypto payments in NestJS without double-crediting
+  wallets
+date: '2026-08-28'
+category: backend
+excerpt: >-
+  A production guide to NOWPayments in NestJS: verifying IPN webhooks (the
+  sorted-key HMAC-SHA512 gotcha), idempotent wallet crediting, BullMQ
+  reconciliation, and whitelist + TOTP payouts.
+cover: >-
+  /images/blog/integrating-nowpayments-crypto-payments-in-nestjs-without-double-crediting-wallets/1787934726186-nowpayments-ipn-lifecycle.svg
+draft: true
+tags:
+  - NestJS
+  - NOWPayments
+  - crypto
+  - webhooks
+  - BullMQ
+  - Prisma
+---
+**To accept crypto through NOWPayments in NestJS safely, verify every IPN callback by re-sorting the JSON body's keys alphabetically, HMAC-SHA512-signing that string with your IPN secret, and comparing it to the** `x-nowpayments-sig` **header with a timing-safe check. Then credit the user's wallet from the locked-in** `price_amount`**, not** `actually_paid`**, and guard the credit with a** `creditedAt` **idempotency flag inside a database transaction.** Everything else — retries, partial payments, reconciliation — hangs off those two decisions.
+
+I run this in production on PlayZeet, a peer-to-peer betting platform that moves real money for real users. The happy path took an afternoon. The parts that took weeks were the ones the docs gloss over: signature verification that silently fails, callbacks that arrive three times, and a payout API guarded by TOTP. This is the guide I wish I'd had.
+
+## Why the webhook is the whole integration
+
+NOWPayments works like most crypto processors. You create an invoice or a payment, the user sends funds to a generated address, and NOWPayments notifies your backend of status changes via an **IPN callback** (Instant Payment Notification — a webhook). You never poll for the outcome; you react to the callback.
+
+That means your webhook handler is the single source of truth for whether a user got paid. If it's wrong, you either credit people who didn't pay or fail to credit people who did. Both are unacceptable when the balance is real money. So the handler has exactly three jobs, in order: **prove the request is really from NOWPayments, respond fast, and credit exactly once.**
+
+## Step 1: Verify the signature — and the gotcha that breaks everyone
+
+NOWPayments signs each callback and puts the signature in the `x-nowpayments-sig` header. To verify, you reproduce the signature on your side and compare.
+
+Here's the part that costs people a day: **NOWPayments does not sign the raw request body.** It sorts the JSON object's keys alphabetically (recursively, including nested objects), serializes *that*, and runs HMAC-SHA512 over it with your IPN secret. If you HMAC the raw bytes the way you would for Stripe, every signature will fail and you'll swear the secret is wrong.
+
+So you have to re-sort before you sign:
+
+ts
+
+```ts
+import { createHmac, timingSafeEqual } from 'crypto';
+
+// Recursively sort object keys so our serialization matches theirs.
+function sortObjectKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortObjectKeys);
+  }
+  if (value && typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, key) => {
+        acc[key] = sortObjectKeys((value as Record<string, unknown>)[key]);
+        return acc;
+      }, {});
+  }
+  return value;
+}
+
+export function isValidNowPaymentsSignature(
+  body: Record<string, unknown>,
+  signatureHeader: string | undefined,
+  ipnSecret: string,
+): boolean {
+  if (!signatureHeader) return false;
+
+  const sortedPayload = JSON.stringify(sortObjectKeys(body));
+  const expected = createHmac('sha512', ipnSecret)
+    .update(sortedPayload)
+    .digest('hex');
+
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(signatureHeader, 'utf8');
+
+  // Length check first — timingSafeEqual throws on mismatched lengths.
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+```
+
+Two details that matter. Use `timingSafeEqual`, not `===`, so you're not leaking signature bytes through response-time differences. And because your parsed JSON body already gives you an object, you *don't* need the raw body for NOWPayments — you re-serialize the sorted object. That's the opposite of Stripe, and mixing up the two mental models is the single most common reason this fails.
+
+In NestJS, keep the verification out of the controller and in a guard so it's declarative and reusable:
+
+ts
+
+```ts
+@Injectable()
+export class NowPaymentsIpnGuard implements CanActivate {
+  constructor(private readonly config: ConfigService) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const req = context.switchToHttp().getRequest();
+    const ok = isValidNowPaymentsSignature(
+      req.body,
+      req.headers['x-nowpayments-sig'],
+      this.config.getOrThrow('NOWPAYMENTS_IPN_SECRET'),
+    );
+    if (!ok) throw new UnauthorizedException('Invalid IPN signature');
+    return true;
+  }
+}
+```
+
+## Step 2: Respond in milliseconds, do the work later
+
+The instinct is to verify the signature, look up the user, credit the wallet, and return `200` — all in the handler. Don't. Webhook senders retry aggressively on slow or failed responses, and every heavy thing you do inline (a DB write, a currency conversion, an external call) is time during which NOWPayments may time out and fire the *same* callback again. Now you're racing yourself.
+
+The fix is to make the handler do almost nothing: verify, enqueue, acknowledge.
+
+ts
+
+```ts
+@UseGuards(NowPaymentsIpnGuard)
+@Post('webhooks/nowpayments')
+@HttpCode(200)
+async handleIpn(@Body() payload: NowPaymentsIpnDto) {
+  // Enqueue and return immediately. All real work happens in the worker.
+  await this.paymentsQueue.add('process-ipn', payload, {
+    jobId: `ipn:${payload.payment_id}:${payload.payment_status}`,
+    attempts: 5,
+    backoff: { type: 'exponential', delay: 2000 },
+    removeOnComplete: 1000,
+    removeOnFail: false,
+  });
+  return { received: true };
+}
+```
+
+I use BullMQ (Redis-backed) for the queue. Notice the `jobId`: keying it on `payment_id` + `payment_status` means if the same status callback lands twice, BullMQ dedupes it before the worker ever runs. That's your first, cheap layer of idempotency — the real one comes in the database.
+
+Returning `200` fast also means a bug in your crediting logic can't cascade into a retry storm. The callback is acknowledged; the work is durable in Redis; you reconcile at your own pace.
+
+## Step 3: Credit `price_amount`, not `actually_paid`
+
+This is the decision that separates a toy integration from a correct one.
+
+The IPN payload gives you several money fields. The two that matter:
+
+- `price_amount` — what you *asked* the user to pay, in your pricing currency (for us, USD), locked in when the payment was created.
+- `actually_paid` — how much crypto actually landed, converted back.
+
+They are almost never equal. Crypto is volatile, network fees vary, and users send from wallets that round oddly. If you credit `actually_paid`, a user who was invoiced $50 might get credited $49.2 or $50.7 depending on the minute — and now your ledger disagrees with what you sold them.
+
+We credit the **locked-in** `price_amount`, and let NOWPayments' `partially_paid` / `finished` statuses tell us whether the obligation was met. The rule:
+
+- Status `finished` (or `confirmed`) → the payment is complete → credit the full `price_amount` once.
+- Status `partially_paid` → the user underpaid → hold, don't credit, surface it for support.
+- Status `expired` / `failed` → close the intent, credit nothing.
+
+ts
+
+```ts
+// Inside the BullMQ worker
+async processIpn(payload: NowPaymentsIpnDto) {
+  const terminalPaid = ['finished', 'confirmed'];
+  if (!terminalPaid.includes(payload.payment_status)) {
+    // Not a credit event — record the transition and move on.
+    await this.recordStatus(payload);
+    return;
+  }
+  await this.creditWalletOnce(payload);
+}
+```
+
+## Step 4: Credit exactly once with a `creditedAt` guard
+
+Even with `jobId` dedup, you must assume the credit path can run twice — a retry after a partial DB failure, a manual replay, two statuses that both look terminal. The database is where you make double-crediting *impossible*, not just unlikely.
+
+The pattern: a `creditedAt` timestamp on the payment row, checked and set inside the same transaction that moves the balance. The transaction either does both or neither.
+
+ts
+
+```ts
+async creditWalletOnce(payload: NowPaymentsIpnDto) {
+  await this.prisma.$transaction(async (tx) => {
+    const payment = await tx.payment.findUnique({
+      where: { providerPaymentId: String(payload.payment_id) },
+    });
+    if (!payment) throw new Error(`Unknown payment ${payload.payment_id}`);
+
+    // The idempotency guard: if it's already credited, stop. No-op, no error.
+    if (payment.creditedAt) return;
+
+    // Credit the locked-in price_amount, not actually_paid.
+    await tx.wallet.update({
+      where: { userId: payment.userId },
+      data: { balance: { increment: payment.priceAmount } },
+    });
+
+    await tx.walletLedger.create({
+      data: {
+        userId: payment.userId,
+        amount: payment.priceAmount,
+        type: 'CRYPTO_DEPOSIT',
+        reference: payment.id,
+      },
+    });
+
+    // Stamp it inside the same transaction — this is what makes it once-only.
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: { creditedAt: new Date(), status: 'CREDITED' },
+    });
+  });
+}
+```
+
+Because the read of `creditedAt`, the balance increment, and the stamp all live in one transaction, a second concurrent run either sees `creditedAt` already set (and no-ops) or serializes behind the first and then sees it set. There is no window where two runs both pass the guard. Pair this with an append-only `walletLedger` and every cent is traceable, which you will be grateful for the first time a user disputes a balance.
+
+## Step 5: Reconciliation, because callbacks get lost
+
+Webhooks are best-effort. A deploy at the wrong moment, a Redis blip, a network partition — sometimes a callback simply never arrives, or arrives and dies. If your only source of truth is the webhook, those payments are stuck forever.
+
+So run a scheduled reconciliation job. On an interval, pull every payment your DB still thinks is pending, ask the NOWPayments API for its real status, and feed any that are now terminal back through the *same* `creditWalletOnce` path. Because that path is idempotent, reconciliation is safe to run as often as you like — it can only ever complete work that was missed, never duplicate work that was done.
+
+ts
+
+```ts
+@Cron(CronExpression.EVERY_5_MINUTES)
+async reconcile() {
+  const stale = await this.prisma.payment.findMany({
+    where: { creditedAt: null, status: { in: ['PENDING', 'CONFIRMING'] } },
+  });
+  for (const p of stale) {
+    const remote = await this.nowPayments.getPaymentStatus(p.providerPaymentId);
+    if (['finished', 'confirmed'].includes(remote.payment_status)) {
+      await this.creditWalletOnce(remote); // same idempotent path
+    }
+  }
+}
+```
+
+The mental model that keeps this correct: **the webhook is an optimization, not the mechanism.** The mechanism is "given a payment ID, converge the wallet to the right state, idempotently." The webhook just makes convergence fast; the cron makes it guaranteed.
+
+## The payout side: whitelisting and TOTP
+
+Deposits are only half of it. Paying users *out* introduces two constraints the docs mention only in passing.
+
+First, **wallet-address whitelisting.** For security, NOWPayments can require every payout destination to be pre-approved in your account before the API will send to it. That's great for safety and awkward for a platform where users withdraw to arbitrary addresses — you have to design your withdrawal flow around registering the address first, then paying, rather than assuming a one-shot payout call.
+
+Second, **TOTP on payouts.** The payout endpoint is protected by two-factor auth: each payout request must carry a valid time-based one-time code. In a UI you'd read it off an authenticator app, but a backend that automates withdrawals has to generate the code itself from the shared secret at request time — the same algorithm your authenticator app uses, running server-side:
+
+ts
+
+```ts
+import { authenticator } from 'otplib';
+
+async requestPayout(address: string, amount: string, currency: string) {
+  const jwt = await this.nowPayments.authenticate(); // email + password → token
+  const totp = authenticator.generate(
+    this.config.getOrThrow('NOWPAYMENTS_2FA_SECRET'),
+  );
+
+  return this.nowPayments.createPayout(
+    { address, currency, amount, verification_code: totp },
+    jwt,
+  );
+}
+```
+
+Treat that 2FA secret like the crown jewels — it's the thing standing between your service account and someone draining your payout balance. It lives in a secrets manager, never in the repo, and never in logs.
+
+## The gotchas, condensed
+
+If you take nothing else, take this checklist — each line is a day I'm saving you:
+
+- **Sort the JSON keys before HMAC.** NOWPayments signs the sorted serialization, not the raw body. This is the #1 cause of "my valid webhooks all return 401."
+- **Use** `timingSafeEqual` **and check lengths first** — it throws on mismatched buffer lengths.
+- **Return** `200` **immediately; do the work in a queue.** Slow handlers get retried and you end up racing duplicate callbacks.
+- **Credit** `price_amount`**, not** `actually_paid`**,** or your ledger drifts with the crypto market.
+- **Guard the credit with** `creditedAt` **inside a transaction.** Job-level dedup is not enough; the database is where "once" becomes guaranteed.
+- **Reconcile on a schedule.** Assume some callbacks never arrive; make the webhook an optimization over a convergent cron.
+- **Design payouts around whitelisting + TOTP from day one** — retrofitting them into a naive one-shot payout call is painful.
+
+None of this is exotic. It's the ordinary discipline of treating money as something that must be *exactly* right, not approximately right — verify the sender, do the work durably, and make every credit idempotent. Get those three habits into your webhook and the rest of the NOWPayments integration is just plumbing.
+
+*Building crypto or fintech payment flows in NestJS and want a second set of eyes on the correctness-critical parts? That's most of what I do — [get in touch](https://www.danielood.com/#contact).*
