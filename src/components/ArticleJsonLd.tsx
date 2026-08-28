@@ -10,6 +10,7 @@ type ArticleJsonLdProps = {
   authorName: string;
   authorUrl?: string;
   image?: string;
+  keywords?: string[];
 };
 
 export function ArticleJsonLd({
@@ -22,6 +23,7 @@ export function ArticleJsonLd({
   authorName,
   authorUrl,
   image,
+  keywords,
 }: ArticleJsonLdProps) {
   return (
     <JsonLd
@@ -38,6 +40,7 @@ export function ArticleJsonLd({
           ...(authorUrl ? { url: authorUrl } : {}),
         },
         ...(image ? { image } : {}),
+        ...(keywords && keywords.length > 0 ? { keywords: keywords.join(", ") } : {}),
         mainEntityOfPage: { "@type": "WebPage", "@id": url },
       }}
     />

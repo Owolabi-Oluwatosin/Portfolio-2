@@ -8,7 +8,7 @@ import { profile } from "@/lib/content";
 import { SITE } from "@/lib/seo";
 import { stripMarkdown } from "@/lib/excerpt";
 import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/ArticleJsonLd";
-import { CoverImage } from "@/components/ui";
+import { CoverImage, Tag } from "@/components/ui";
 import PostAudioPlayer from "@/components/PostAudioPlayer";
 
 export function generateStaticParams() {
@@ -61,6 +61,7 @@ export default function PostPage({ params }: { params: { slug: string } }) {
         authorName={profile.name}
         authorUrl={SITE.url}
         image={`${SITE.url}/blog/${post.slug}/opengraph-image`}
+        keywords={post.tags}
       />
       <BreadcrumbJsonLd
         items={[
@@ -78,6 +79,13 @@ export default function PostPage({ params }: { params: { slug: string } }) {
       <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
         {post.title}
       </h1>
+      {post.tags.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {post.tags.map((t) => (
+            <Tag key={t}>{t}</Tag>
+          ))}
+        </div>
+      )}
       <PostAudioPlayer text={spokenText} />
       {post.cover && (
         <div className="mt-6">

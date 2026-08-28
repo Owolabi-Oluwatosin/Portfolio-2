@@ -44,6 +44,7 @@ function Editor() {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [category, setCategory] = useState("general");
+  const [tagsInput, setTagsInput] = useState("");
   const [excerpt, setExcerpt] = useState("");
   const [cover, setCover] = useState("");
   // A freshly-picked cover won't actually be servable at its GitHub URL until
@@ -69,6 +70,7 @@ function Editor() {
         setTitle((data.title as string) ?? "");
         setDate((data.date as string) ?? new Date().toISOString().slice(0, 10));
         setCategory((data.category as string) ?? "general");
+        setTagsInput(Array.isArray(data.tags) ? (data.tags as string[]).join(", ") : "");
         setExcerpt((data.excerpt as string) ?? "");
         setCover((data.cover as string) ?? "");
         setDraft(data.draft === true);
@@ -128,6 +130,10 @@ function Editor() {
     try {
       const finalExcerpt = excerpt.trim() || generateExcerpt(content);
       if (finalExcerpt !== excerpt) setExcerpt(finalExcerpt);
+      const tags = tagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
       const data = {
         title,
         date,
@@ -135,6 +141,7 @@ function Editor() {
         excerpt: finalExcerpt,
         ...(cover ? { cover } : {}),
         draft,
+        tags,
       };
       const raw = serializePost(data, content);
       const path = editPath ?? pathForSlug(slug);
@@ -212,6 +219,15 @@ function Editor() {
           <input
             value={category}
             onChange={(e) => setCategory(e.target.value)}
+            className="rounded-lg border border-border bg-surface px-3 py-2"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm">
+          Tags
+          <input
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder="e.g. backend, prisma, fintech"
             className="rounded-lg border border-border bg-surface px-3 py-2"
           />
         </label>

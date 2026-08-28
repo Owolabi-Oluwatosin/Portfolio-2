@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { PostMeta } from "@/lib/blog";
 import { formatDate } from "@/lib/blog";
+import { Tag } from "@/components/ui";
 
 export default function BlogPostCard({ post }: { post: PostMeta }) {
   return (
@@ -41,6 +42,13 @@ export default function BlogPostCard({ post }: { post: PostMeta }) {
         <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-muted">
           {post.excerpt}
         </p>
+        {post.tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {post.tags.map((t) => (
+              <Tag key={t}>{t}</Tag>
+            ))}
+          </div>
+        )}
       </div>
     </Link>
   );

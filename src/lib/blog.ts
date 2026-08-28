@@ -13,6 +13,7 @@ export type PostMeta = {
   excerpt: string;
   cover?: string;
   draft?: boolean;
+  tags: string[];
   readingMinutes: number;
 };
 
@@ -35,6 +36,7 @@ export function getAllPosts(): PostMeta[] {
         excerpt: data.excerpt ?? "",
         cover: data.cover ?? undefined,
         draft: data.draft === true,
+        tags: Array.isArray(data.tags) ? data.tags : [],
         readingMinutes: readingTime(content),
       };
     })
@@ -57,6 +59,7 @@ export function getPost(slug: string): Post | null {
     excerpt: data.excerpt ?? "",
     cover: data.cover ?? undefined,
     draft: data.draft === true,
+    tags: Array.isArray(data.tags) ? data.tags : [],
     readingMinutes: readingTime(content),
     content,
   };
