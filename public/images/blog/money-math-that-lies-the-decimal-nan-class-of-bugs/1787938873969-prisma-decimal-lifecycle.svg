@@ -1,0 +1,170 @@
+<svg viewBox="0 0 1200 640" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Prisma Decimal plus Decimal: raw objects coerce to NaN, or normalize at the toNum boundary to a real number">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1120"/><stop offset="1" stop-color="#0E1730"/>
+    </linearGradient>
+    <filter id="glow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      .title{fill:#E2E8F0;font-family:'Segoe UI',system-ui,sans-serif;font-weight:700;}
+      .sub{fill:#94A3B8;font-family:'Segoe UI',system-ui,sans-serif;}
+      .lab{fill:#94A3B8;font-family:'JetBrains Mono',monospace;font-size:13px;}
+      .val{fill:#E2E8F0;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;}
+      .card{fill:#16213A;stroke:#2B3A5B;stroke-width:1.5;}
+
+      /* interactivity: toggle which lane is "live" via :target */
+      #lane-bad, #lane-good{transition:opacity .3s;}
+      /* default (no target): bad lane live, good lane dimmed */
+      #lane-good{opacity:.28;}
+      #lane-bad{opacity:1;}
+      /* when good is targeted */
+      svg:target #lane-good{opacity:1;} /* fallback, overridden below */
+      #root:target #lane-good{opacity:1;}
+      #wrap-good:target ~ * #lane-good{opacity:1;}
+
+      .tab{cursor:pointer;}
+      .tab rect{fill:#0F1A30;stroke:#2B3A5B;stroke-width:1.5;}
+      .tab text{font-family:'Segoe UI',system-ui,sans-serif;font-weight:600;font-size:15px;fill:#94A3B8;}
+    </style>
+  </defs>
+
+  <rect width="1200" height="640" fill="url(#bg)"/>
+  <rect x="20" y="20" width="1160" height="600" rx="20" fill="none" stroke="#1E2A44"/>
+
+  <text x="48" y="70" class="title" font-size="28">Decimal + Decimal → ?</text>
+  <text x="48" y="98" class="sub" font-size="16">both operands are Prisma.Decimal · no exception is thrown either way — that's the danger</text>
+
+  <!-- ================= BAD LANE (top) ================= -->
+  <g id="lane-bad">
+    <text x="48" y="150" class="lab" fill="#F87171" font-size="14">❌ raw Decimal · no boundary</text>
+
+    <!-- source nodes -->
+    <g>
+      <rect x="48" y="168" width="150" height="74" rx="12" class="card"/>
+      <text x="123" y="198" text-anchor="middle" class="lab">bet.stake</text>
+      <text x="123" y="222" text-anchor="middle" class="val" fill="#22D3EE">Decimal 50.00</text>
+    </g>
+    <text x="228" y="212" text-anchor="middle" class="val" fill="#94A3B8" font-size="26">+</text>
+    <g>
+      <rect x="258" y="168" width="150" height="74" rx="12" class="card"/>
+      <text x="333" y="198" text-anchor="middle" class="lab">bet.bonus</text>
+      <text x="333" y="222" text-anchor="middle" class="val" fill="#22D3EE">Decimal 5.00</text>
+    </g>
+
+    <!-- flow line to result -->
+    <line x1="408" y1="205" x2="720" y2="205" stroke="#3a2330" stroke-width="3" stroke-linecap="round"
+          stroke-dasharray="9 11">
+      <animate attributeName="stroke-dashoffset" from="0" to="-40" dur="1s" repeatCount="indefinite"/>
+    </line>
+
+    <!-- coercion result -->
+    <g>
+      <rect x="470" y="168" width="188" height="74" rx="12" class="card" stroke="#F87171"/>
+      <text x="564" y="196" text-anchor="middle" class="lab">"[obj Object]"+"[obj Object]"</text>
+      <text x="564" y="222" text-anchor="middle" class="val" fill="#F87171">→ NaN</text>
+    </g>
+
+    <!-- ledger -->
+    <g>
+      <rect x="740" y="168" width="170" height="74" rx="12" class="card" stroke="#F87171"/>
+      <text x="825" y="198" text-anchor="middle" class="lab">ledger balance</text>
+      <text x="825" y="224" text-anchor="middle" class="val" fill="#F87171" font-size="20">NaN
+        <animate attributeName="opacity" values="1;0.35;1" dur="1.4s" repeatCount="indefinite"/>
+      </text>
+    </g>
+    <text x="980" y="212" class="sub" font-size="13" fill="#F87171">written silently ·<tspan x="980" dy="18">surfaces days later</tspan></text>
+
+    <!-- travelling packet: turns red at the operator -->
+    <circle r="10" fill="#22D3EE" stroke="#0B1120" stroke-width="2" filter="url(#glow)">
+      <animateMotion dur="3.4s" repeatCount="indefinite" calcMode="linear" path="M198,205 L825,205"/>
+      <animate attributeName="fill" values="#22D3EE;#22D3EE;#F87171;#F87171" keyTimes="0;0.32;0.4;1" dur="3.4s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- divider -->
+  <line x1="48" y1="330" x2="1152" y2="330" stroke="#1E2A44" stroke-dasharray="4 8"/>
+
+  <!-- ================= GOOD LANE (bottom) ================= -->
+  <g id="lane-good">
+    <text x="48" y="378" class="lab" fill="#34D399" font-size="14">✅ toNum() boundary · normalize once</text>
+
+    <g>
+      <rect x="48" y="396" width="150" height="74" rx="12" class="card"/>
+      <text x="123" y="426" text-anchor="middle" class="lab">bet.stake</text>
+      <text x="123" y="450" text-anchor="middle" class="val" fill="#22D3EE">Decimal 50.00</text>
+    </g>
+    <text x="228" y="440" text-anchor="middle" class="val" fill="#94A3B8" font-size="26">+</text>
+    <g>
+      <rect x="258" y="396" width="150" height="74" rx="12" class="card"/>
+      <text x="333" y="426" text-anchor="middle" class="lab">bet.bonus</text>
+      <text x="333" y="450" text-anchor="middle" class="val" fill="#22D3EE">Decimal 5.00</text>
+    </g>
+
+    <!-- the boundary gate -->
+    <g>
+      <rect x="440" y="392" width="150" height="82" rx="12" class="card" stroke="#34D399"/>
+      <rect x="440" y="392" width="6" height="82" rx="3" fill="#34D399"/>
+      <text x="515" y="420" text-anchor="middle" class="lab" fill="#34D399">toNum()</text>
+      <text x="515" y="444" text-anchor="middle" class="val" fill="#34D399" font-size="14">Decimal → number</text>
+      <text x="515" y="463" text-anchor="middle" class="lab" font-size="11">.toNumber()</text>
+      <!-- gate pulse -->
+      <rect x="440" y="392" width="150" height="82" rx="12" fill="none" stroke="#34D399" stroke-width="2">
+        <animate attributeName="opacity" values="0;0.9;0" dur="3.4s" begin="1.1s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+
+    <line x1="408" y1="433" x2="630" y2="433" stroke="#1e3a30" stroke-width="3" stroke-linecap="round" stroke-dasharray="9 11">
+      <animate attributeName="stroke-dashoffset" from="0" to="-40" dur="1s" repeatCount="indefinite"/>
+    </line>
+    <line x1="590" y1="433" x2="900" y2="433" stroke="#1e3a30" stroke-width="3" stroke-linecap="round" stroke-dasharray="9 11">
+      <animate attributeName="stroke-dashoffset" from="0" to="-40" dur="1s" repeatCount="indefinite"/>
+    </line>
+
+    <!-- result + ledger -->
+    <g>
+      <rect x="646" y="396" width="150" height="74" rx="12" class="card" stroke="#34D399"/>
+      <text x="721" y="426" text-anchor="middle" class="lab">total</text>
+      <text x="721" y="450" text-anchor="middle" class="val" fill="#34D399">55.00</text>
+    </g>
+    <g>
+      <rect x="900" y="396" width="170" height="74" rx="12" class="card" stroke="#34D399"/>
+      <text x="985" y="426" text-anchor="middle" class="lab">ledger balance</text>
+      <text x="985" y="452" text-anchor="middle" class="val" fill="#34D399" font-size="20">55.00</text>
+    </g>
+
+    <!-- packet: converts at the gate, stays green -->
+    <circle r="10" fill="#22D3EE" stroke="#0B1120" stroke-width="2" filter="url(#glow)">
+      <animateMotion dur="3.4s" repeatCount="indefinite" calcMode="linear" path="M198,433 L985,433"/>
+      <animate attributeName="fill" values="#22D3EE;#22D3EE;#34D399;#34D399" keyTimes="0;0.34;0.42;1" dur="3.4s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- ================= INTERACTIVE TOGGLE ================= -->
+  <!-- anchors let the reader click to spotlight a lane (SVG :target) -->
+  <a id="wrap-bad" href="#lane-bad" class="tab">
+    <g transform="translate(48,556)">
+      <rect x="0" y="0" width="250" height="44" rx="10"/>
+      <text x="125" y="28" text-anchor="middle">❌ spotlight the bug</text>
+    </g>
+  </a>
+  <a id="wrap-good" href="#lane-good" class="tab">
+    <g transform="translate(316,556)">
+      <rect x="0" y="0" width="250" height="44" rx="10"/>
+      <text x="125" y="28" text-anchor="middle">✅ spotlight the fix</text>
+    </g>
+  </a>
+  <text x="590" y="584" class="sub" font-size="13">click a lane to focus it — both animate continuously</text>
+
+  <!-- :target-driven emphasis -->
+  <style>
+    #lane-bad:target{opacity:1;}
+    #lane-good:target{opacity:1;}
+    /* when the good lane is targeted, dim the bad one */
+    #lane-good:target ~ #lane-bad{opacity:.28;}
+  </style>
+
+  <text x="1152" y="600" text-anchor="end" class="lab" fill="#475569">danielood.com</text>
+</svg>
