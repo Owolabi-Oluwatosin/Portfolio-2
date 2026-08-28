@@ -6,6 +6,7 @@ import { projects, profile, type Project } from "@/lib/content";
 import { SITE } from "@/lib/seo";
 import { Tag, ProjectCover } from "@/components/ui";
 import JsonLd from "@/components/JsonLd";
+import { BreadcrumbJsonLd } from "@/components/ArticleJsonLd";
 
 const statusColor: Record<Project["status"], string> = {
   Live: "text-accent-2 border-accent-2/40",
@@ -54,25 +55,16 @@ export default function ProjectPage({ params }: { params: { slug: string } }) {
     ...(project.href ? { sameAs: [project.href] } : {}),
   };
 
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Projects",
-        item: `${SITE.url}/projects`,
-      },
-      { "@type": "ListItem", position: 3, name: project.name, item: url },
-    ],
-  };
-
   return (
     <article className="mx-auto max-w-2xl px-5 py-20">
       <JsonLd data={creativeWorkJsonLd} />
-      <JsonLd data={breadcrumbJsonLd} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", item: SITE.url },
+          { name: "Projects", item: `${SITE.url}/projects` },
+          { name: project.name, item: url },
+        ]}
+      />
       <Link href="/projects" className="text-sm text-muted hover:text-accent">
         ← All projects
       </Link>

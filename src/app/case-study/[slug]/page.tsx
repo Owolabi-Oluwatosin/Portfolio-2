@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/blog";
 import { profile } from "@/lib/content";
 import { SITE } from "@/lib/seo";
 import { Tag, CoverImage } from "@/components/ui";
-import JsonLd from "@/components/JsonLd";
+import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/ArticleJsonLd";
 
 export function generateStaticParams() {
   return getAllCaseStudies().map((s) => ({ slug: s.slug }));
@@ -43,36 +43,25 @@ export default function CaseStudyPage({ params }: { params: { slug: string } }) 
 
   const url = `${SITE.url}/case-study/${study.slug}`;
 
-  const articleJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: study.title,
-    datePublished: study.date,
-    dateModified: study.date,
-    author: { "@type": "Person", name: profile.name, url: SITE.url },
-    image: `${SITE.url}/case-study/${study.slug}/opengraph-image`,
-    mainEntityOfPage: { "@type": "WebPage", "@id": url },
-  };
-
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Case Studies",
-        item: `${SITE.url}/case-study`,
-      },
-      { "@type": "ListItem", position: 3, name: study.title, item: url },
-    ],
-  };
-
   return (
     <article className="mx-auto max-w-2xl px-5 pb-20 pt-10">
-      <JsonLd data={articleJsonLd} />
-      <JsonLd data={breadcrumbJsonLd} />
+      <ArticleJsonLd
+        type="Article"
+        url={url}
+        headline={study.title}
+        description={study.summary}
+        datePublished={study.date}
+        authorName={profile.name}
+        authorUrl={SITE.url}
+        image={`${SITE.url}/case-study/${study.slug}/opengraph-image`}
+      />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", item: SITE.url },
+          { name: "Case Studies", item: `${SITE.url}/case-study` },
+          { name: study.title, item: url },
+        ]}
+      />
       <Link href="/case-study" className="text-sm text-muted hover:text-accent">
         ← All case studies
       </Link>
