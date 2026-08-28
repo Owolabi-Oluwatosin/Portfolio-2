@@ -10,15 +10,17 @@ export default function BlogPostCard({ post }: { post: PostMeta }) {
       href={`/blog/${post.slug}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-all hover:-translate-y-1 hover:border-accent/50"
     >
-      <div className="relative aspect-video w-full overflow-hidden bg-bg">
+      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden bg-bg p-4">
         {post.cover ? (
-          <Image
-            src={post.cover}
-            alt={`${post.title} cover image`}
-            fill
-            sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-          />
+          <div className="relative h-full w-full transition-transform duration-500 group-hover:scale-105">
+            <Image
+              src={post.cover}
+              alt={`${post.title} cover image`}
+              fill
+              sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+              className="object-contain"
+            />
+          </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-accent/25 to-accent-2/25 p-6 text-center">
             <span className="line-clamp-3 font-semibold text-fg/70">
