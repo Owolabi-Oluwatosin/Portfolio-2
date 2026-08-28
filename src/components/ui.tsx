@@ -69,14 +69,16 @@ export function CoverImage({
 }) {
   if (!cover) return null;
   return (
-    <div className="relative mb-4 aspect-video w-full overflow-hidden rounded-xl border border-border">
-      <Image
-        src={cover}
-        alt={`${title} cover image`}
-        fill
-        sizes="(min-width: 768px) 50vw, 100vw"
-        className="object-cover"
-      />
+    <div className="relative mb-4 flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-bg p-4">
+      <div className="relative h-full w-full">
+        <Image
+          src={cover}
+          alt={`${title} cover image`}
+          fill
+          sizes="(min-width: 768px) 50vw, 100vw"
+          className="object-contain"
+        />
+      </div>
     </div>
   );
 }
