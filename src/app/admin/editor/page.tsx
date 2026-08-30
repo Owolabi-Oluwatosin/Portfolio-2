@@ -43,6 +43,7 @@ function Editor() {
   const [slug, setSlug] = useState("");
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [updated, setUpdated] = useState<string | undefined>(undefined);
   const [category, setCategory] = useState("general");
   const [tagsInput, setTagsInput] = useState("");
   const [excerpt, setExcerpt] = useState("");
@@ -69,6 +70,7 @@ function Editor() {
         setSlug(editPath.split("/").pop()!.replace(/\.mdx?$/, ""));
         setTitle((data.title as string) ?? "");
         setDate((data.date as string) ?? new Date().toISOString().slice(0, 10));
+        setUpdated((data.updated as string) ?? undefined);
         setCategory((data.category as string) ?? "general");
         setTagsInput(Array.isArray(data.tags) ? (data.tags as string[]).join(", ") : "");
         setExcerpt((data.excerpt as string) ?? "");
@@ -134,9 +136,14 @@ function Editor() {
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
+      // Re-saving an existing post counts as an update; a brand-new post has
+      // no revision history yet, so it gets no "updated" stamp until its
+      // first edit after creation.
+      const nextUpdated = isEditMode ? new Date().toISOString().slice(0, 10) : undefined;
       const data = {
         title,
         date,
+        ...(nextUpdated ? { updated: nextUpdated } : {}),
         category,
         excerpt: finalExcerpt,
         ...(cover ? { cover } : {}),
@@ -153,6 +160,7 @@ function Editor() {
         sha
       );
       setSha(result.sha);
+      setUpdated(nextUpdated);
       setCommitMessage("");
       setSuccess({ text: "Committed to GitHub. Site will rebuild in ~1-2 min." });
       if (!isEditMode) router.replace(`/admin/editor?path=${encodeURIComponent(path)}`);
@@ -213,6 +221,11 @@ function Editor() {
             onChange={(e) => setDate(e.target.value)}
             className="rounded-lg border border-border bg-surface px-3 py-2"
           />
+          {updated && (
+            <span className="text-xs text-muted">
+              Last updated {updated} — set automatically on save
+            </span>
+          )}
         </label>
         <label className="flex flex-col gap-1.5 text-sm">
           Category

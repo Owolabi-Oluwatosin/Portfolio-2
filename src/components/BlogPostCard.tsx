@@ -35,7 +35,11 @@ export default function BlogPostCard({ post }: { post: PostMeta }) {
             {post.category}
           </span>
           <span className="font-mono text-xs text-muted">
-            {formatDate(post.date)} · {post.readingMinutes} min read
+            {post.updated && post.updated !== post.date
+              ? `Updated ${formatDate(post.updated)}`
+              : formatDate(post.date)}
+            {" · "}
+            {post.readingMinutes} min read
           </span>
         </div>
         <h3 className="mt-3 text-lg font-semibold leading-snug transition-colors group-hover:text-accent">

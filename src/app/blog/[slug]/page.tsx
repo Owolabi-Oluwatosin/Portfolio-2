@@ -38,6 +38,7 @@ export function generateMetadata({
       description: post.excerpt,
       url,
       publishedTime: post.date,
+      modifiedTime: post.updated,
       authors: [SITE.url],
     },
   };
@@ -58,6 +59,7 @@ export default function PostPage({ params }: { params: { slug: string } }) {
         headline={post.title}
         description={post.excerpt}
         datePublished={post.date}
+        dateModified={post.updated}
         authorName={profile.name}
         authorUrl={SITE.url}
         image={`${SITE.url}/blog/${post.slug}/opengraph-image`}
@@ -74,7 +76,11 @@ export default function PostPage({ params }: { params: { slug: string } }) {
         ← All posts
       </Link>
       <div className="mt-6 font-mono text-xs text-muted">
-        {formatDate(post.date)} · {post.category} · {post.readingMinutes} min read
+        By {profile.name} · Published {formatDate(post.date)}
+        {post.updated && post.updated !== post.date
+          ? ` · Updated ${formatDate(post.updated)}`
+          : ""}
+        {` · ${post.category} · ${post.readingMinutes} min read`}
       </div>
       <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
         {post.title}
