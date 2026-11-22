@@ -1,0 +1,53 @@
+---
+title: 'Building Real-Time Apps That Don''t Break Under Load: Lessons From Production'
+date: '2026-11-22'
+category: general
+excerpt: >-
+  Live scores, prices and chat feel simple to users and hard to build. Here's
+  what I learned shipping a real-time platform to production as its sole
+  engineer.
+cover: >-
+  /images/blog/building-real-time-apps-that-don-t-break-under-load-lessons-from-production/1795362208103-cover-realtime.png
+draft: false
+tags:
+  - real-time app developer
+  - WebSocket developer
+  - hire Node.js developer
+  - scalable real-time application
+  - live data app development
+---
+Users expect live data to just work. A price, a score or a message should update instantly, on every device, without a refresh. Behind that is one of the hardest problems in web development. I learned it as the only engineer on a production sports platform, PlayZeet, where every second of delay was visible to users.
+
+### Real-time is a promise, not a feature
+
+Adding WebSockets takes an afternoon. Keeping thousands of connections accurate, fast and stable takes architecture. Before you hire, ask any developer how they handle reconnection, missed messages and duplicate updates.
+
+### Lesson 1: Connections will drop, so plan for it
+
+Mobile networks switch, laptops sleep and servers restart. A solid app reconnects automatically and catches the user up on what they missed. Without that, users see stale data and lose trust fast.
+
+### Lesson 2: The server is the source of truth
+
+The client should never decide what's true. It displays what the server confirms. This prevents the worst class of bugs: two users seeing two different realities.
+
+### Lesson 3: Spikes are the real test
+
+Traffic in live apps isn't smooth. It jumps when something happens: a goal, a price move, a launch. Design for the spike, not the average. Load test with realistic bursts before users do it for you.
+
+**Live data hitting our own rate limit:** The ‘Live now’ page polled 21 sports over HTTPS from a single server IP, tripping our own 20-requests-a-minute limit and leaving sports blank. I switched it to [Socket.IO](http://Socket.IO) subscriptions that receive a full snapshot on subscribe and only deltas after that, which cut it to zero per-sport requests and one counts call.Lesson 4: Watch it in production
+
+You can't fix what you can't see. Log connection counts, message latency and error rates from day one. Alerts should reach you before user complaints do.
+
+### Lesson 5: Keep the UI calm while the data moves
+
+Fast data can make an interface feel chaotic. Good real-time UX batches updates, highlights what changed and never shifts a button just as someone taps it. My design background makes this the part I enjoy most.
+
+### Where real-time matters
+
+- Fintech dashboards and trading tools
+- Sports and live-event platforms
+- Chat, collaboration and notifications
+- Logistics and delivery tracking
+- IoT and monitoring dashboards
+
+Building something live? I build real-time systems with Node.js, Go and TypeScript. [Let's talk about your project](https://www.upwork.com/freelancers/~017f49e3fd7ac7a273?mp_source=share).
